@@ -82,17 +82,18 @@ def convert_pd_dataframe(data, columns: list):
         logger.error(f"Failed operation in convert_pd_dataframe.\n{e}")
         raise e   
 
+
 data, fields = get_dbinfo_fetchall(config.get("QUERY"))
 pandas_df = convert_pd_dataframe(data, fields)
 pandas_df = pandas_df.astype(str)
 # pandas_df['date'] = pandas_df['date'].strftime("%Y-%m-%d %H:%M:%S")
 # print(pandas_df.to_string())
 print(pandas_df.describe())
-st.dataframe(data = pandas_df)
+st.dataframe(data = pandas_df)  
 
 chosen = st.radio(
-        'Product',
-        ("product_1", "product_2"))
+    'Product',
+    ("product_1", "product_2"))
 if chosen == "product_1":
     st.line_chart(data = pandas_df[pandas_df['name'] == config.get("PRODUCT_1")], x = 'date', y = 'margen')
 elif chosen == "product_2":
