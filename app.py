@@ -6,7 +6,105 @@ import time
 import streamlit as st
 import numpy as np
 import pandas as pd
+from dotenv import dotenv_values
+import os
+import contextlib
+import sys
+import logging
+import psycopg2
+import psycopg2.extras
+import matplotlib 
+import altair as alt
 
+logging.basicConfig(
+    encoding="utf-8",
+    format="%(levelname)7s:%(asctime)s %(message)s",
+    datefmt="%m/%d/%Y %I:%M:%S %p",
+    level=logging.INFO,
+    force=True,
+)
+logger = logging.getLogger()
+
+config = {
+    **dotenv_values(".env")
+}
+
+@contextlib.contextmanager
+def create_conn():
+    conn_string = "host=%s user=%s password=%s dbname=%s port=%s" % (
+        config.get("DB_HOST"),
+        config.get("DB_USERNAME"),
+        config.get("DB_PASSWORD"),
+        config.get("DB_NAME"),
+        config.get("DB_PORT"),
+    )
+    conn = None
+    try:
+        logger.info("Before connection established")
+        conn = psycopg2.connect(conn_string)
+        logger.info("Connection established")
+        yield conn
+        conn.commit()
+        logger.warning("SUCCESS: Connection commited")
+    except Exception as e:
+        _, _, traceback = sys.exc_info()
+        if isinstance(conn, psycopg2.extensions.connection):
+            conn.rollback()
+            logger.error("ERROR: Connection rollbacked")
+        error_detail = f"Error: {e.__doc__}\n Line: {traceback.tb_lineno}"
+        raise psycopg2.OperationalError(f"ERROR: {error_detail}")
+    finally:
+        if isinstance(conn, psycopg2.extensions.connection):
+            conn.close()
+            logger.warning("SUCCESS: Connection closed")
+            
+def get_dbinfo_fetchall(query: str):
+    try:
+        data = None
+        with create_conn() as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
+                cursor.execute(query)
+                fields = [i[0] for i in cursor.description]
+                data = cursor.fetchall()
+        return data, fields
+    except Exception as e:
+        logger.error(f"Failed operation in get_dbinfo_fetchall.\n{e}")
+        raise e
+    
+    
+def convert_pd_dataframe(data, columns: list):
+    try:
+        return pd.DataFrame(
+            data,
+            columns=columns,
+        )
+    except Exception as e:
+        logger.error(f"Failed operation in convert_pd_dataframe.\n{e}")
+        raise e   
+
+data, fields = get_dbinfo_fetchall(config.get("QUERY"))
+pandas_df = convert_pd_dataframe(data, fields)
+pandas_df = pandas_df.astype(str)
+# pandas_df['date'] = pandas_df['date'].strftime("%Y-%m-%d %H:%M:%S")
+# print(pandas_df.to_string())
+print(pandas_df.describe())
+st.dataframe(data = pandas_df)
+
+chosen = st.radio(
+        'Product',
+        ("product_1", "product_2"))
+if chosen == "product_1":
+    st.line_chart(data = pandas_df[pandas_df['name'] == config.get("PRODUCT_1")], x = 'date', y = 'margen')
+elif chosen == "product_2":
+    st.line_chart(data = pandas_df[pandas_df['name'] == config.get("PRODUCT_2")], x = 'date', y = 'margen')
+# st.bar_chart(data = pandas_df.groupby(['name'])) #, x = 'date', y = 'margen')
+
+chart = alt.Chart(pandas_df).mark_line().encode(
+    x = alt.X("date"),
+    y = alt.Y("margen"), 
+    color = alt.Color("name")
+)
+st.altair_chart(chart, use_container_width=True)
 
 # Use magic
 df = pd.DataFrame({
