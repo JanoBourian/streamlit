@@ -12,3 +12,8 @@ streamlit run your_script.py
 * [API reference](https://docs.streamlit.io/develop/api-reference)
 * [Create Docker File](https://docs.streamlit.io/deploy/tutorials/docker#create-a-dockerfile)
 * [Cheat sheet](https://cheat-sheet.streamlit.app/)
+
+## Numpy
+
+* Is a Linear Algebra Library
+* Vectors and Matrices are the core of numpy
